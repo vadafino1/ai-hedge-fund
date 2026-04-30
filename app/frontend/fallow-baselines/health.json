@@ -234,17 +234,11 @@
       }
     },
     "src/nodes/components/portfolio-start-node.tsx": {
-      "crap_critical": {
-        "count": 1
-      },
-      "crap_high": {
-        "count": 1
+      "crap_moderate": {
+        "count": 2
       }
     },
     "src/nodes/components/stock-analyzer-node.tsx": {
-      "crap_critical": {
-        "count": 1
-      },
       "crap_moderate": {
         "count": 1
       }

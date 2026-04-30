@@ -1,27 +1,13 @@
 import assert from 'node:assert/strict';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
 import test from 'node:test';
-import ts from 'typescript';
+
+import { importTypeScriptModule } from './import-typescript-module.mjs';
 
 async function importSseClient() {
-  const sourcePath = path.resolve('src/services/sse-client.ts');
-  const source = await readFile(sourcePath, 'utf8');
-  const transpiled = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.ES2022,
-      target: ts.ScriptTarget.ES2020,
-      moduleResolution: ts.ModuleResolutionKind.Bundler,
-    },
-    fileName: sourcePath,
+  return importTypeScriptModule('src/services/sse-client.ts', {
+    tempDirName: 'ai-hedge-fund-sse-client-test',
+    modulePrefix: 'sse-client',
   });
-
-  const tempDir = path.join(tmpdir(), 'ai-hedge-fund-sse-client-test');
-  await mkdir(tempDir, { recursive: true });
-  const modulePath = path.join(tempDir, `sse-client-${Date.now()}.mjs`);
-  await writeFile(modulePath, transpiled.outputText, 'utf8');
-  return import(`file://${modulePath}`);
 }
 
 function createSseResponse(chunks) {

@@ -14,15 +14,6 @@
     "src/nodes/components/agent-node.tsx:25-48|src/nodes/components/portfolio-manager-node.tsx:26-57",
     "src/nodes/components/agent-node.tsx:57-74|src/nodes/components/portfolio-manager-node.tsx:74-89",
     "src/nodes/components/agent-node.tsx:88-99|src/nodes/components/portfolio-manager-node.tsx:109-124",
-    "src/nodes/components/portfolio-start-node.tsx:5-28|src/nodes/components/stock-analyzer-node.tsx:6-29",
-    "src/nodes/components/portfolio-start-node.tsx:58-83|src/nodes/components/stock-analyzer-node.tsx:51-76",
-    "src/nodes/components/portfolio-start-node.tsx:125-138|src/nodes/components/stock-analyzer-node.tsx:109-126",
-    "src/nodes/components/portfolio-start-node.tsx:132-205|src/nodes/components/stock-analyzer-node.tsx:121-191",
-    "src/nodes/components/portfolio-start-node.tsx:208-229|src/nodes/components/stock-analyzer-node.tsx:191-212",
-    "src/nodes/components/portfolio-start-node.tsx:213-249|src/nodes/components/stock-analyzer-node.tsx:196-230",
-    "src/nodes/components/portfolio-start-node.tsx:360-376|src/nodes/components/stock-analyzer-node.tsx:264-284",
-    "src/nodes/components/portfolio-start-node.tsx:377-413|src/nodes/components/stock-analyzer-node.tsx:285-321",
-    "src/nodes/components/portfolio-start-node.tsx:424-447|src/nodes/components/stock-analyzer-node.tsx:355-377",
     "src/services/api-keys-api.ts:116-125|src/services/api-keys-api.ts:145-154"
   ]
 }

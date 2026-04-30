@@ -4,12 +4,14 @@ from sqlalchemy.orm import Session
 import asyncio
 
 from app.backend.database import get_db
-from app.backend.models.schemas import ErrorResponse, HedgeFundRequest, BacktestRequest, BacktestDayResult, BacktestPerformanceMetrics
+from app.backend.models.schemas import ErrorResponse, HedgeFundRequest, BacktestRequest, BacktestDayResult, BacktestPerformanceMetrics, ExecutionMode
 from app.backend.models.events import StartEvent, ProgressUpdateEvent, ErrorEvent, CompleteEvent
 from app.backend.services.graph import create_graph, parse_hedge_fund_response, run_graph_async
 from app.backend.services.portfolio import create_portfolio
 from app.backend.services.backtest_service import BacktestService
 from app.backend.services.api_key_service import ApiKeyService
+from app.backend.services.sandbox_service import SandboxService
+from app.backend.services.sandbox_settings import get_sandbox_settings
 from src.utils.progress import progress
 from src.utils.analysts import get_agents_list
 
@@ -25,10 +27,17 @@ router = APIRouter(prefix="/hedge-fund")
 )
 async def run(request_data: HedgeFundRequest, request: Request, db: Session = Depends(get_db)):
     try:
-        # Hydrate API keys from database if not provided
-        if not request_data.api_keys:
+        # Hydrate API keys from database if not provided. Tests may call this route with db=None.
+        if not request_data.api_keys and db is not None:
             api_key_service = ApiKeyService(db)
             request_data.api_keys = api_key_service.get_api_keys_dict()
+
+        if request_data.execution_mode == ExecutionMode.DOCKER_SANDBOX:
+            sandbox_service = SandboxService(get_sandbox_settings())
+            sandbox_status = sandbox_service.status()
+            if not sandbox_status.available:
+                raise HTTPException(status_code=503, detail=f"Docker sandbox is not available: {sandbox_status.message}")
+            return StreamingResponse(sandbox_service.run_hedge_fund_sse(request_data, request), media_type="text/event-stream")
 
         # Create the portfolio
         portfolio = create_portfolio(request_data.initial_cash, request_data.margin_requirement, request_data.tickers, request_data.portfolio_positions)
@@ -170,10 +179,17 @@ async def run(request_data: HedgeFundRequest, request: Request, db: Session = De
 async def backtest(request_data: BacktestRequest, request: Request, db: Session = Depends(get_db)):
     """Run a continuous backtest over a time period with streaming updates."""
     try:
-        # Hydrate API keys from database if not provided
-        if not request_data.api_keys:
+        # Hydrate API keys from database if not provided. Tests may call this route with db=None.
+        if not request_data.api_keys and db is not None:
             api_key_service = ApiKeyService(db)
             request_data.api_keys = api_key_service.get_api_keys_dict()
+
+        if request_data.execution_mode == ExecutionMode.DOCKER_SANDBOX:
+            sandbox_service = SandboxService(get_sandbox_settings())
+            sandbox_status = sandbox_service.status()
+            if not sandbox_status.available:
+                raise HTTPException(status_code=503, detail=f"Docker sandbox is not available: {sandbox_status.message}")
+            return StreamingResponse(sandbox_service.run_backtest_sse(request_data, request), media_type="text/event-stream")
 
         # Convert model_provider to string if it's an enum
         model_provider = request_data.model_provider

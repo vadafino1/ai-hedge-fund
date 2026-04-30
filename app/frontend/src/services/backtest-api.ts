@@ -6,6 +6,7 @@ import type {
   BacktestPerformanceMetrics,
   BacktestRequest
 } from '@/services/types';
+import { getStoredExecutionMode } from '@/services/execution-mode';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -32,7 +33,7 @@ export const backtestApi = {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(params),
+      body: JSON.stringify({ ...params, execution_mode: params.execution_mode || getStoredExecutionMode() }),
       signal,
     })
     .then(response => {
@@ -287,3 +288,5 @@ export const backtestApi = {
     };
   },
 };
+
+

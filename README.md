@@ -75,8 +75,12 @@ Open and edit the `.env` file to add your API keys:
 # For running LLMs hosted by openai (gpt-4o, gpt-4o-mini, etc.)
 OPENAI_API_KEY=your-openai-api-key
 
-# For getting financial data to power the hedge fund
-FINANCIAL_DATASETS_API_KEY=your-financial-datasets-api-key
+# For daily/weekly market data without a paid FinancialDatasets dependency
+AI_HEDGE_FUND_DATA_PROVIDER=local,yfinance
+AI_HEDGE_FUND_PRICE_DATA_DIR=data/prices
+AI_HEDGE_FUND_ENABLE_FINTEL=false
+AI_HEDGE_FUND_FINTEL_PROVIDER_PATH=
+AI_HEDGE_FUND_ALLOW_FINANCIAL_DATASETS=false
 ```
 
 **Important**: You must set at least one LLM API key (e.g. `OPENAI_API_KEY`, `GROQ_API_KEY`, `ANTHROPIC_API_KEY`, or `DEEPSEEK_API_KEY`) for the hedge fund to work. 
@@ -155,3 +159,49 @@ If you have a feature request, please open an [issue](https://github.com/virattt
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+
+## Docker sandbox execution mode
+
+The web app can optionally run hedge-fund and backtest requests in a short-lived local Docker container instead of inside the FastAPI backend process. Local execution remains the default. This is local Docker isolation only; it is not a trading guarantee, a remote sandbox, or a multi-tenant security boundary.
+
+Build the image before enabling sandbox mode:
+
+```bash
+docker build -f docker/Dockerfile -t ai-hedge-fund:latest .
+```
+
+Then start the app normally from the `app` directory:
+
+```bash
+cd app
+./run.sh
+```
+
+Check availability at `GET http://localhost:8000/sandbox/status` or in Settings -> Sandbox. Configure with these optional environment variables in the root `.env` file:
+
+```bash
+AI_HEDGE_FUND_EXECUTION_MODE=local
+AI_HEDGE_FUND_SANDBOX_IMAGE=ai-hedge-fund:latest
+AI_HEDGE_FUND_SANDBOX_NETWORK=bridge
+AI_HEDGE_FUND_SANDBOX_TIMEOUT_SECONDS=900
+AI_HEDGE_FUND_SANDBOX_RETAIN_RUN_DIRS=false
+```
+
+The sandbox runner bind-mounts request files and, if present, the root `.env` file read-only. It does not use `--env-file`, and tests are designed so default unit tests do not require Docker. If source code changes, rebuild the Docker image before expecting sandbox runs to reflect those changes.
+
+## Data providers for daily/weekly trading
+
+FinancialDatasets is now optional premium mode, not a prerequisite. By default, price data is resolved from local daily quote files under `data/prices` and then free daily providers where available. Local CSV files should contain `date,open,high,low,close,volume` columns.
+
+Fintel can be enabled as enrichment for institutional ownership, insider trades, short data, filings, institution holdings, and filing/document search. Fintel is not used as the primary OHLCV price source.
+
+```bash
+AI_HEDGE_FUND_DATA_PROVIDER=local,yfinance
+AI_HEDGE_FUND_PRICE_DATA_DIR=data/prices
+AI_HEDGE_FUND_ENABLE_FINTEL=false
+AI_HEDGE_FUND_FINTEL_PROVIDER_PATH=
+AI_HEDGE_FUND_ALLOW_FINANCIAL_DATASETS=false
+# Optional premium mode only:
+# FINANCIAL_DATASETS_API_KEY=your-financialdatasets-key
+```

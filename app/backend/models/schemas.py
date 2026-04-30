@@ -1,9 +1,23 @@
 from datetime import datetime, timedelta
+import os
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
 from src.llm.models import ModelProvider
 from enum import Enum
 from app.backend.services.graph import extract_base_agent_key
+
+
+class ExecutionMode(str, Enum):
+    LOCAL = "local"
+    DOCKER_SANDBOX = "docker_sandbox"
+
+
+def get_default_execution_mode() -> ExecutionMode:
+    value = os.getenv("AI_HEDGE_FUND_EXECUTION_MODE", ExecutionMode.LOCAL.value)
+    try:
+        return ExecutionMode(value)
+    except ValueError:
+        return ExecutionMode.LOCAL
 
 
 class FlowRunStatus(str, Enum):
@@ -57,6 +71,15 @@ class ErrorResponse(BaseModel):
     error: str | None = None
 
 
+class SandboxStatusResponse(BaseModel):
+    available: bool
+    docker_installed: bool
+    docker_running: bool
+    image_available: bool
+    image_name: str
+    message: str
+
+
 # Base class for shared fields between HedgeFundRequest and BacktestRequest
 class BaseHedgeFundRequest(BaseModel):
     tickers: List[str]
@@ -68,6 +91,7 @@ class BaseHedgeFundRequest(BaseModel):
     margin_requirement: float = 0.0
     portfolio_positions: Optional[List[PortfolioPosition]] = None
     api_keys: Optional[Dict[str, str]] = None
+    execution_mode: ExecutionMode = Field(default_factory=get_default_execution_mode)
 
     def get_agent_ids(self) -> List[str]:
         """Extract agent IDs from graph structure"""

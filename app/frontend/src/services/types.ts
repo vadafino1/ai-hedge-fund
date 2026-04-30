@@ -6,6 +6,17 @@ enum ModelProvider {
   OLLAMA = 'Ollama',
 }
 
+export type ExecutionMode = 'local' | 'docker_sandbox';
+
+export interface SandboxStatus {
+  available: boolean;
+  docker_installed: boolean;
+  docker_running: boolean;
+  image_available: boolean;
+  image_name: string;
+  message: string;
+}
+
 export interface AgentModelConfig {
   agent_id: string;
   model_name?: string;
@@ -43,6 +54,7 @@ export interface BaseHedgeFundRequest {
   model_provider?: ModelProvider;
   margin_requirement?: number;
   portfolio_positions?: PortfolioPosition[];
+  execution_mode?: ExecutionMode;
 }
 
 export interface HedgeFundRequest extends BaseHedgeFundRequest {

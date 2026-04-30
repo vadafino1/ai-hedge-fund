@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils';
 import { CubeIcon } from '@radix-ui/react-icons';
-import { Key, Palette } from 'lucide-react';
+import { Box, Key, Palette } from 'lucide-react';
 import { useState } from 'react';
-import { ApiKeysSettings, Models } from './';
+import { ApiKeysSettings, Models, SandboxSettings } from './';
 import { ThemeSettings } from './appearance';
 
 interface SettingsProps {
@@ -33,6 +33,12 @@ export function Settings({ className }: SettingsProps) {
       description: 'Local and cloud AI models',
     },
     {
+      id: 'sandbox',
+      label: 'Sandbox',
+      icon: Box,
+      description: 'Docker execution isolation',
+    },
+    {
       id: 'theme',
       label: 'Theme',
       icon: Palette,
@@ -46,6 +52,8 @@ export function Settings({ className }: SettingsProps) {
         return <Models />;
       case 'theme':
         return <ThemeSettings />;
+      case 'sandbox':
+        return <SandboxSettings />;
       case 'api':
         return <ApiKeysSettings />;
       default:

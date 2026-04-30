@@ -4,12 +4,22 @@ import type { LanguageModel } from '@/data/models';
 import { extractBaseAgentKey } from '@/data/node-mappings';
 import { flowConnectionManager } from '@/services/flow-connection-manager';
 import type {
-  HedgeFundRequest
+  HedgeFundRequest,
+  SandboxStatus
 } from '@/services/types';
+import { getStoredExecutionMode } from '@/services/execution-mode';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export const api = {
+  getSandboxStatus: async (): Promise<SandboxStatus> => {
+    const response = await fetch(`${API_BASE_URL}/sandbox/status`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  },
+
   /**
    * Gets the list of available agents from the backend
    * @returns Promise that resolves to the list of agents
@@ -98,7 +108,7 @@ export const api = {
     const getAgentIds = () => params.graph_nodes.map(node => node.id);
 
     // Pass the unique node IDs directly to the backend
-    const backendParams = params;
+    const backendParams: HedgeFundRequest = { ...params, execution_mode: params.execution_mode || getStoredExecutionMode() };
 
     // For SSE connections with FastAPI, we need to use POST
     // First, create the controller

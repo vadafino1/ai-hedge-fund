@@ -229,3 +229,50 @@ If ports 8000 or 5173 are in use:
 ### Getting Help
 - Check the [GitHub Issues](https://github.com/virattt/ai-hedge-fund/issues)
 - Follow updates on [Twitter](https://x.com/virattt) 
+
+
+## Docker sandbox execution mode
+
+The web app can optionally run hedge-fund and backtest requests in a short-lived local Docker container instead of inside the FastAPI backend process. Local execution remains the default. This is local Docker isolation only; it is not a trading guarantee, a remote sandbox, or a multi-tenant security boundary.
+
+Build the image before enabling sandbox mode:
+
+```bash
+docker build -f docker/Dockerfile -t ai-hedge-fund:latest .
+```
+
+Then start the app normally from the `app` directory:
+
+```bash
+cd app
+./run.sh
+```
+
+Check availability at `GET http://localhost:8000/sandbox/status` or in Settings -> Sandbox. Configure with these optional environment variables in the root `.env` file:
+
+```bash
+AI_HEDGE_FUND_EXECUTION_MODE=local
+AI_HEDGE_FUND_SANDBOX_IMAGE=ai-hedge-fund:latest
+AI_HEDGE_FUND_SANDBOX_NETWORK=bridge
+AI_HEDGE_FUND_SANDBOX_TIMEOUT_SECONDS=900
+AI_HEDGE_FUND_SANDBOX_RETAIN_RUN_DIRS=false
+```
+
+The sandbox runner bind-mounts request files and, if present, the root `.env` file read-only. It does not use `--env-file`, and tests are designed so default unit tests do not require Docker. If source code changes, rebuild the Docker image before expecting sandbox runs to reflect those changes.
+
+
+## Data providers for daily/weekly trading
+
+FinancialDatasets is optional premium mode, not a prerequisite. The default data mode is suitable for daily/weekly backtesting: local daily quote files under `data/prices` first, then free daily providers where available. Local CSV files should contain `date,open,high,low,close,volume` columns.
+
+Fintel can be enabled as optional enrichment for institutional ownership, insider trades, short data, filings, institution holdings, and filing/document search. Fintel is not used as the primary OHLCV price source.
+
+```bash
+AI_HEDGE_FUND_DATA_PROVIDER=local,yfinance
+AI_HEDGE_FUND_PRICE_DATA_DIR=data/prices
+AI_HEDGE_FUND_ENABLE_FINTEL=false
+AI_HEDGE_FUND_FINTEL_PROVIDER_PATH=
+AI_HEDGE_FUND_ALLOW_FINANCIAL_DATASETS=false
+# Optional premium mode only:
+# FINANCIAL_DATASETS_API_KEY=your-financialdatasets-key
+```

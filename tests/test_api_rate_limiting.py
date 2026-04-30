@@ -197,8 +197,8 @@ class TestRateLimiting:
         
         mock_get.side_effect = [mock_429_response, mock_200_response]
         
-        # Set environment variable for API key
-        with patch.dict(os.environ, {"FINANCIAL_DATASETS_API_KEY": "test-key"}):
+        # Enable optional premium mode for this FinancialDatasets-specific rate-limit test.
+        with patch.dict(os.environ, {"FINANCIAL_DATASETS_API_KEY": "test-key", "AI_HEDGE_FUND_ALLOW_FINANCIAL_DATASETS": "true", "AI_HEDGE_FUND_DATA_PROVIDER": "financialdatasets"}):
             # Call get_prices
             result = get_prices("AAPL", "2024-01-01", "2024-01-02")
         

@@ -11,7 +11,7 @@ import { type AppNode } from './types';
 // Types
 export * from './types';
 
-export const initialNodes: AppNode[] = [
+const initialNodes: AppNode[] = [
   {
     id: 'stock-analyzer-node',
     type: 'stock-analyzer-node',
@@ -44,7 +44,7 @@ export const initialNodes: AppNode[] = [
   },
 ];
 
-export const initialEdges: Edge[] = [
+const initialEdges: Edge[] = [
   { id: 'e1-2', source: 'portfolio-manager-node', target: 'valuation_analyst' },
   { id: 'e2-3', source: 'valuation_analyst', target: 'investment-report-node' },
 ];

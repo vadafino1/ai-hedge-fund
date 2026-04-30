@@ -3,6 +3,7 @@ import logging
 import os
 import pandas as pd
 import requests
+import re
 import time
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,215 @@ from src.data.models import (
 
 # Global cache instance
 _cache = get_cache()
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _configured_providers() -> list[str]:
+    raw = os.environ.get("AI_HEDGE_FUND_DATA_PROVIDER", "local,yfinance")
+    return [part.strip().lower() for part in raw.split(",") if part.strip()]
+
+
+def _financialdatasets_enabled(api_key: str | None = None) -> bool:
+    return _env_flag("AI_HEDGE_FUND_ALLOW_FINANCIAL_DATASETS", False) and bool(api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY"))
+
+
+def _price_data_dir() -> str:
+    return os.environ.get("AI_HEDGE_FUND_PRICE_DATA_DIR", "data/prices")
+
+
+def _safe_ticker_for_filename(ticker: str) -> str | None:
+    symbol = ticker.strip()
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", symbol):
+        logger.warning("Rejecting unsafe ticker for local price lookup: %r", ticker)
+        return None
+    return symbol
+
+
+def _load_local_prices(ticker: str, start_date: str, end_date: str) -> list[Price]:
+    safe_ticker = _safe_ticker_for_filename(ticker)
+    if not safe_ticker:
+        return []
+    price_dir = os.path.abspath(_price_data_dir())
+    candidates = [
+        os.path.abspath(os.path.join(price_dir, f"{safe_ticker.upper()}.csv")),
+        os.path.abspath(os.path.join(price_dir, f"{safe_ticker.lower()}.csv")),
+    ]
+    path = next((candidate for candidate in candidates if os.path.commonpath([price_dir, candidate]) == price_dir and os.path.exists(candidate)), None)
+    if not path:
+        return []
+    try:
+        df = pd.read_csv(path)
+    except Exception as exc:
+        logger.warning("Failed to read local price CSV for %s: %s", ticker, exc)
+        return []
+
+    lower_to_original = {str(col).lower(): col for col in df.columns}
+    date_col = lower_to_original.get("date") or lower_to_original.get("time")
+    if not date_col:
+        logger.warning("Local price CSV for %s has no date/time column", ticker)
+        return []
+
+    required = ["open", "high", "low", "close", "volume"]
+    if any(col not in lower_to_original for col in required):
+        logger.warning("Local price CSV for %s is missing one of %s", ticker, required)
+        return []
+
+    df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+    start = pd.to_datetime(start_date)
+    end = pd.to_datetime(end_date)
+    df = df[(df[date_col] >= start) & (df[date_col] <= end)].copy()
+    df.sort_values(date_col, inplace=True)
+
+    prices: list[Price] = []
+    for _, row in df.iterrows():
+        if pd.isna(row[date_col]):
+            continue
+        try:
+            prices.append(
+                Price(
+                    time=row[date_col].strftime("%Y-%m-%d"),
+                    open=float(row[lower_to_original["open"]]),
+                    high=float(row[lower_to_original["high"]]),
+                    low=float(row[lower_to_original["low"]]),
+                    close=float(row[lower_to_original["close"]]),
+                    volume=int(row[lower_to_original["volume"]]),
+                )
+            )
+        except Exception as exc:
+            logger.warning("Skipping invalid local price row for %s: %s", ticker, exc)
+    return prices
+
+
+def _load_yfinance_prices(ticker: str, start_date: str, end_date: str) -> list[Price]:
+    try:
+        import yfinance as yf  # type: ignore
+    except Exception:
+        return []
+    try:
+        end_exclusive = (pd.to_datetime(end_date) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+        df = yf.download(ticker, start=start_date, end=end_exclusive, progress=False, auto_adjust=False)
+    except Exception as exc:
+        logger.warning("Failed to fetch yfinance prices for %s: %s", ticker, exc)
+        return []
+    if df is None or df.empty:
+        return []
+    if isinstance(df.columns, pd.MultiIndex):
+        lookup = ticker.strip().upper()
+        if lookup in df.columns.get_level_values(-1):
+            df = df.xs(lookup, axis=1, level=-1)
+        elif lookup in df.columns.get_level_values(0):
+            df = df[lookup]
+        else:
+            df.columns = df.columns.get_level_values(0)
+    prices: list[Price] = []
+    for index, row in df.iterrows():
+        try:
+            prices.append(
+                Price(
+                    time=pd.to_datetime(index).strftime("%Y-%m-%d"),
+                    open=float(row.get("Open")),
+                    high=float(row.get("High")),
+                    low=float(row.get("Low")),
+                    close=float(row.get("Close")),
+                    volume=int(row.get("Volume", 0)),
+                )
+            )
+        except Exception as exc:
+            logger.warning("Skipping invalid yfinance price row for %s: %s", ticker, exc)
+    return prices
+
+
+def _fetch_fintel_symbol_payload(command: str, symbol: str, country: str = "us") -> dict | list | None:
+    try:
+        provider_path = os.environ.get("AI_HEDGE_FUND_FINTEL_PROVIDER_PATH")
+        if provider_path:
+            import sys
+            provider_path = os.path.abspath(provider_path)
+            if not os.path.isdir(provider_path):
+                logger.warning("Configured Fintel provider path does not exist: %s", provider_path)
+                return None
+            if provider_path not in sys.path:
+                sys.path.append(provider_path)
+        from mykm.hedgefund.providers.fintel_api import fetch_symbol_payload  # type: ignore
+        return fetch_symbol_payload(command, symbol, country=country)
+    except Exception as exc:
+        logger.warning("Fintel %s lookup failed for %s: %s", command, symbol, exc)
+        return None
+
+
+def _payload_items(payload: dict | list | None) -> list[dict]:
+    if payload is None:
+        return []
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if not isinstance(payload, dict):
+        return []
+    for key in ("data", "rows", "results", "insider_trades", "items"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+    return [payload]
+
+
+def _first_value(row: dict, *keys: str):
+    for key in keys:
+        if key in row and row[key] not in (None, ""):
+            return row[key]
+    return None
+
+
+def _to_float(value):
+    if value in (None, ""):
+        return None
+    try:
+        return float(str(value).replace(",", ""))
+    except Exception:
+        return None
+
+
+def _map_fintel_insider_trades(ticker: str, payload: dict | list | None, start_date: str | None, end_date: str, limit: int) -> list[InsiderTrade]:
+    trades: list[InsiderTrade] = []
+    start_dt = pd.to_datetime(start_date) if start_date else None
+    end_dt = pd.to_datetime(end_date)
+    for row in _payload_items(payload):
+        filing_date = _first_value(row, "filing_date", "filingDate", "filed", "filedDate", "date")
+        transaction_date = _first_value(row, "transaction_date", "transactionDate", "transactionDateDt", "date")
+        effective_date = filing_date or transaction_date
+        if not effective_date:
+            continue
+        parsed = pd.to_datetime(effective_date, errors="coerce")
+        if pd.isna(parsed):
+            continue
+        if start_dt is not None and parsed < start_dt:
+            continue
+        if parsed > end_dt:
+            continue
+        trades.append(
+            InsiderTrade(
+                ticker=ticker,
+                issuer=_first_value(row, "issuer", "issuerName", "company"),
+                name=_first_value(row, "name", "ownerName", "insider", "reportingOwner"),
+                title=_first_value(row, "title", "officerTitle", "relationship"),
+                is_board_director=None,
+                transaction_date=str(transaction_date or effective_date)[:10],
+                transaction_shares=_to_float(_first_value(row, "transaction_shares", "transactionShares", "shares")),
+                transaction_price_per_share=_to_float(_first_value(row, "transaction_price_per_share", "transactionPricePerShare", "price")),
+                transaction_value=_to_float(_first_value(row, "transaction_value", "transactionValue", "value")),
+                shares_owned_before_transaction=_to_float(_first_value(row, "shares_owned_before_transaction", "sharesOwnedBeforeTransaction")),
+                shares_owned_after_transaction=_to_float(_first_value(row, "shares_owned_after_transaction", "sharesOwnedAfterTransaction", "sharesOwned")),
+                security_title=_first_value(row, "security_title", "securityTitle"),
+                filing_date=str(filing_date or effective_date)[:10],
+            )
+        )
+        if len(trades) >= limit:
+            break
+    return trades
 
 
 def _make_api_request(url: str, headers: dict, method: str = "GET", json_data: dict = None, max_retries: int = 3) -> requests.Response:
@@ -61,26 +271,31 @@ def _make_api_request(url: str, headers: dict, method: str = "GET", json_data: d
 
 
 def get_prices(ticker: str, start_date: str, end_date: str, api_key: str = None) -> list[Price]:
-    """Fetch price data from cache or API."""
-    # Create a cache key that includes all parameters to ensure exact matches
+    """Fetch daily OHLCV from cache, local/free providers, or optional premium provider."""
     cache_key = f"{ticker}_{start_date}_{end_date}"
-    
-    # Check cache first - simple exact match
     if cached_data := _cache.get_prices(cache_key):
         return [Price(**price) for price in cached_data]
 
-    # If not in cache, fetch from API
-    headers = {}
-    financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
-    if financial_api_key:
-        headers["X-API-KEY"] = financial_api_key
+    prices: list[Price] = []
+    providers = _configured_providers()
+    if "local" in providers:
+        prices = _load_local_prices(ticker, start_date, end_date)
+    if not prices and "yfinance" in providers:
+        prices = _load_yfinance_prices(ticker, start_date, end_date)
 
+    if prices:
+        _cache.set_prices(cache_key, [p.model_dump() for p in prices])
+        return prices
+
+    if not _financialdatasets_enabled(api_key) or "financialdatasets" not in providers:
+        return []
+
+    headers = {"X-API-KEY": api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")}
     url = f"https://api.financialdatasets.ai/prices/?ticker={ticker}&interval=day&interval_multiplier=1&start_date={start_date}&end_date={end_date}"
     response = _make_api_request(url, headers)
     if response.status_code != 200:
         return []
 
-    # Parse response with Pydantic model
     try:
         price_response = PriceResponse(**response.json())
         prices = price_response.prices
@@ -91,10 +306,8 @@ def get_prices(ticker: str, start_date: str, end_date: str, api_key: str = None)
     if not prices:
         return []
 
-    # Cache the results using the comprehensive cache key
     _cache.set_prices(cache_key, [p.model_dump() for p in prices])
     return prices
-
 
 def get_financial_metrics(
     ticker: str,
@@ -111,12 +324,10 @@ def get_financial_metrics(
     if cached_data := _cache.get_financial_metrics(cache_key):
         return [FinancialMetrics(**metric) for metric in cached_data]
 
-    # If not in cache, fetch from API
-    headers = {}
-    financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
-    if financial_api_key:
-        headers["X-API-KEY"] = financial_api_key
+    if not _financialdatasets_enabled(api_key):
+        return []
 
+    headers = {"X-API-KEY": api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")}
     url = f"https://api.financialdatasets.ai/financial-metrics/?ticker={ticker}&report_period_lte={end_date}&limit={limit}&period={period}"
     response = _make_api_request(url, headers)
     if response.status_code != 200:
@@ -147,12 +358,10 @@ def search_line_items(
     api_key: str = None,
 ) -> list[LineItem]:
     """Fetch line items from API."""
-    # If not in cache or insufficient data, fetch from API
-    headers = {}
-    financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
-    if financial_api_key:
-        headers["X-API-KEY"] = financial_api_key
+    if not _financialdatasets_enabled(api_key):
+        return []
 
+    headers = {"X-API-KEY": api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")}
     url = "https://api.financialdatasets.ai/financials/search/line-items"
 
     body = {
@@ -187,20 +396,26 @@ def get_insider_trades(
     limit: int = 1000,
     api_key: str = None,
 ) -> list[InsiderTrade]:
-    """Fetch insider trades from cache or API."""
-    # Create a cache key that includes all parameters to ensure exact matches
+    """Fetch insider trades from cache, optional Fintel enrichment, or optional premium provider."""
     cache_key = f"{ticker}_{start_date or 'none'}_{end_date}_{limit}"
-    
-    # Check cache first - simple exact match
+
     if cached_data := _cache.get_insider_trades(cache_key):
         return [InsiderTrade(**trade) for trade in cached_data]
 
-    # If not in cache, fetch from API
-    headers = {}
-    financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
-    if financial_api_key:
-        headers["X-API-KEY"] = financial_api_key
+    if _env_flag("AI_HEDGE_FUND_ENABLE_FINTEL", False):
+        try:
+            fintel_payload = _fetch_fintel_symbol_payload("insider", ticker)
+            fintel_trades = _map_fintel_insider_trades(ticker, fintel_payload, start_date, end_date, limit)
+            if fintel_trades:
+                _cache.set_insider_trades(cache_key, [trade.model_dump() for trade in fintel_trades])
+                return fintel_trades
+        except Exception as exc:
+            logger.warning("Fintel insider trades unavailable for %s: %s", ticker, exc)
 
+    if not _financialdatasets_enabled(api_key):
+        return []
+
+    headers = {"X-API-KEY": api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")}
     all_trades = []
     current_end_date = end_date
 
@@ -227,24 +442,19 @@ def get_insider_trades(
 
         all_trades.extend(insider_trades)
 
-        # Only continue pagination if we have a start_date and got a full page
         if not start_date or len(insider_trades) < limit:
             break
 
-        # Update end_date to the oldest filing date from current batch for next iteration
         current_end_date = min(trade.filing_date for trade in insider_trades).split("T")[0]
 
-        # If we've reached or passed the start_date, we can stop
         if current_end_date <= start_date:
             break
 
     if not all_trades:
         return []
 
-    # Cache the results using the comprehensive cache key
     _cache.set_insider_trades(cache_key, [trade.model_dump() for trade in all_trades])
     return all_trades
-
 
 def get_company_news(
     ticker: str,
@@ -261,12 +471,10 @@ def get_company_news(
     if cached_data := _cache.get_company_news(cache_key):
         return [CompanyNews(**news) for news in cached_data]
 
-    # If not in cache, fetch from API
-    headers = {}
-    financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
-    if financial_api_key:
-        headers["X-API-KEY"] = financial_api_key
+    if not _financialdatasets_enabled(api_key):
+        return []
 
+    headers = {"X-API-KEY": api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")}
     all_news = []
     current_end_date = end_date
 
@@ -320,12 +528,9 @@ def get_market_cap(
     """Fetch market cap from the API."""
     # Check if end_date is today
     if end_date == datetime.datetime.now().strftime("%Y-%m-%d"):
-        # Get the market cap from company facts API
-        headers = {}
-        financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
-        if financial_api_key:
-            headers["X-API-KEY"] = financial_api_key
-
+        if not _financialdatasets_enabled(api_key):
+            return None
+        headers = {"X-API-KEY": api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")}
         url = f"https://api.financialdatasets.ai/company/facts/?ticker={ticker}"
         response = _make_api_request(url, headers)
         if response.status_code != 200:
@@ -350,6 +555,10 @@ def get_market_cap(
 
 def prices_to_df(prices: list[Price]) -> pd.DataFrame:
     """Convert prices to a DataFrame."""
+    if not prices:
+        empty = pd.DataFrame(columns=["open", "close", "high", "low", "volume"])
+        empty.index = pd.DatetimeIndex([], name="Date")
+        return empty
     df = pd.DataFrame([p.model_dump() for p in prices])
     df["Date"] = pd.to_datetime(df["time"])
     df.set_index("Date", inplace=True)

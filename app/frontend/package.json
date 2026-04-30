@@ -9,6 +9,7 @@
     "test:sse": "node scripts/test-sse-client.mjs",
     "test:flow-run-config": "node scripts/test-flow-run-config.mjs",
     "test:ollama-helpers": "node scripts/test-ollama-helpers.mjs",
+    "test:keyboard-shortcuts": "node scripts/test-keyboard-shortcuts.mjs",
     "preview": "vite preview",
     "fallow": "node scripts/fallow-local-only.mjs",
     "fallow:json": "node scripts/fallow-local-only.mjs --format json",

@@ -1,14 +1,6 @@
 import { useEffect } from 'react';
 
-interface KeyboardShortcut {
-  key: string;
-  ctrlKey?: boolean;
-  metaKey?: boolean;
-  shiftKey?: boolean;
-  altKey?: boolean;
-  callback: () => void;
-  preventDefault?: boolean;
-}
+import { createKeyboardShortcutHandler, type KeyboardShortcut } from './keyboard-shortcut-matcher';
 
 interface UseKeyboardShortcutsProps {
   shortcuts: KeyboardShortcut[];
@@ -16,31 +8,7 @@ interface UseKeyboardShortcutsProps {
 
 export function useKeyboardShortcuts({ shortcuts }: UseKeyboardShortcutsProps) {
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      shortcuts.forEach(({ key, ctrlKey, metaKey, shiftKey, altKey, callback, preventDefault = true }) => {
-        const isCtrlMatch = ctrlKey ? event.ctrlKey : !event.ctrlKey;
-        const isMetaMatch = metaKey ? event.metaKey : !event.metaKey;
-        const isShiftMatch = shiftKey ? event.shiftKey : !event.shiftKey;
-        const isAltMatch = altKey ? event.altKey : !event.altKey;
-        const isKeyMatch = event.key.toLowerCase() === key.toLowerCase();
-
-        // For save shortcut, we want either Ctrl+S OR Cmd+S
-        const isSaveShortcut = key.toLowerCase() === 's' && (ctrlKey || metaKey);
-        const matchesSaveShortcut = isSaveShortcut && (event.ctrlKey || event.metaKey) && isKeyMatch;
-
-        // For shortcuts that should work with either Ctrl or Cmd
-        const isModifierShortcut = (ctrlKey || metaKey) && (event.ctrlKey || event.metaKey);
-        const matchesModifierShortcut = isModifierShortcut && isKeyMatch && isShiftMatch && isAltMatch;
-
-        if (matchesSaveShortcut || matchesModifierShortcut || (isKeyMatch && isCtrlMatch && isMetaMatch && isShiftMatch && isAltMatch)) {
-          if (preventDefault) {
-            event.preventDefault();
-          }
-          callback();
-        }
-      });
-    };
-
+    const handleKeyDown = createKeyboardShortcutHandler(shortcuts);
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
@@ -64,9 +32,15 @@ export function useFlowKeyboardShortcuts(saveFlow: (showToast?: boolean) => void
   useKeyboardShortcuts({ shortcuts });
 }
 
+function addShortcut(shortcuts: KeyboardShortcut[], shortcut: KeyboardShortcut, enabled: boolean): void {
+  if (enabled) {
+    shortcuts.push(shortcut);
+  }
+}
+
 // Convenience hook for layout keyboard shortcuts
 export function useLayoutKeyboardShortcuts(
-  toggleRightSidebar: () => void, 
+  toggleRightSidebar: () => void,
   toggleLeftSidebar?: () => void,
   fitView?: () => void,
   undo?: () => void,
@@ -77,89 +51,73 @@ export function useLayoutKeyboardShortcuts(
   const shortcuts: KeyboardShortcut[] = [
     {
       key: 'i',
-      ctrlKey: true, // This will match either Ctrl+I or Cmd+I due to our logic above  
+      ctrlKey: true, // This will match either Ctrl+I or Cmd+I due to our logic above
       metaKey: true,
       callback: toggleRightSidebar,
       preventDefault: true,
     },
   ];
 
-  // Add left sidebar toggle if provided
-  if (toggleLeftSidebar) {
-    shortcuts.push({
-      key: 'b',
-      ctrlKey: true, // This will match either Ctrl+B or Cmd+B
-      metaKey: true,
-      callback: toggleLeftSidebar,
-      preventDefault: true,
-    });
-  }
+  addShortcut(shortcuts, {
+    key: 'b',
+    ctrlKey: true, // This will match either Ctrl+B or Cmd+B
+    metaKey: true,
+    callback: toggleLeftSidebar ?? (() => undefined),
+    preventDefault: true,
+  }, Boolean(toggleLeftSidebar));
 
-  // Add fit view shortcut if provided
-  if (fitView) {
-    shortcuts.push({
-      key: '0',
-      ctrlKey: true, // This will match either Ctrl+O or Cmd+O
-      metaKey: true,
-      callback: fitView,
-      preventDefault: true,
-    });
-  }
+  addShortcut(shortcuts, {
+    key: '0',
+    ctrlKey: true, // This will match either Ctrl+0 or Cmd+0
+    metaKey: true,
+    callback: fitView ?? (() => undefined),
+    preventDefault: true,
+  }, Boolean(fitView));
 
-  // Add undo shortcut if provided
-  if (undo) {
-    shortcuts.push({
-      key: 'z',
-      ctrlKey: true, // This will match either Ctrl+Z or Cmd+Z
-      metaKey: true,
-      callback: undo,
-      preventDefault: true,
-    });
-  }
+  addShortcut(shortcuts, {
+    key: 'z',
+    ctrlKey: true, // This will match either Ctrl+Z or Cmd+Z
+    metaKey: true,
+    callback: undo ?? (() => undefined),
+    preventDefault: true,
+  }, Boolean(undo));
 
-  // Add redo shortcut if provided
-  if (redo) {
-    shortcuts.push({
-      key: 'z',
-      ctrlKey: true, // This will match either Ctrl+Shift+Z or Cmd+Shift+Z
-      metaKey: true,
-      shiftKey: true,
-      callback: redo,
-      preventDefault: true,
-    });
-  }
+  addShortcut(shortcuts, {
+    key: 'z',
+    ctrlKey: true, // This will match either Ctrl+Shift+Z or Cmd+Shift+Z
+    metaKey: true,
+    shiftKey: true,
+    callback: redo ?? (() => undefined),
+    preventDefault: true,
+  }, Boolean(redo));
 
-  // Add bottom panel toggle shortcut if provided
-  if (toggleBottomPanel) {
-    shortcuts.push({
-      key: 'j',
-      ctrlKey: true, // This will match either Ctrl+J or Cmd+J (like VSCode)
-      metaKey: true,
-      callback: toggleBottomPanel,
-      preventDefault: true,
-    });
-  }
+  addShortcut(shortcuts, {
+    key: 'j',
+    ctrlKey: true, // This will match either Ctrl+J or Cmd+J (like VSCode)
+    metaKey: true,
+    callback: toggleBottomPanel ?? (() => undefined),
+    preventDefault: true,
+  }, Boolean(toggleBottomPanel));
 
-  // Add settings shortcut if provided
   if (openSettings) {
-    shortcuts.push({
-      key: 'j',
-      ctrlKey: true, // This will match either Ctrl+Shift+J or Cmd+Shift+J
-      metaKey: true,
-      shiftKey: true,
-      callback: openSettings,
-      preventDefault: true,
-    });
-    
-    // Add settings shortcut if provided
-    shortcuts.push({
-      key: ',',
-      ctrlKey: true, // This will match either Ctrl+, or Cmd+,
-      metaKey: true,
-      callback: openSettings,
-      preventDefault: true,
-    });
+    shortcuts.push(
+      {
+        key: 'j',
+        ctrlKey: true, // This will match either Ctrl+Shift+J or Cmd+Shift+J
+        metaKey: true,
+        shiftKey: true,
+        callback: openSettings,
+        preventDefault: true,
+      },
+      {
+        key: ',',
+        ctrlKey: true, // This will match either Ctrl+, or Cmd+,
+        metaKey: true,
+        callback: openSettings,
+        preventDefault: true,
+      },
+    );
   }
 
   useKeyboardShortcuts({ shortcuts });
-} 
+}

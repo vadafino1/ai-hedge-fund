@@ -1,7 +1,7 @@
-import { NodeStatus, useNodeContext } from '@/contexts/node-context';
+import type { NodeStatus, useNodeContext } from '@/contexts/node-context';
 import { extractBaseAgentKey } from '@/data/node-mappings';
-import { flowConnectionManager } from '@/hooks/use-flow-connection';
-import {
+import { flowConnectionManager } from '@/services/flow-connection-manager';
+import type {
   BacktestDayResult,
   BacktestPerformanceMetrics,
   BacktestRequest
@@ -50,7 +50,7 @@ export const backtestApi = {
       let buffer = '';
       
       // Local array to accumulate backtest results
-      let backtestResults: any[] = [];
+      let backtestResults: BacktestDayResult[] = [];
       
       // Function to process the stream
       const processStream = async () => {
@@ -131,7 +131,7 @@ export const backtestApi = {
                         // If this progress update contains backtest result data, add it to local array
                         if (eventData.analysis) {
                           try {
-                            const backtestResultData = JSON.parse(eventData.analysis);
+                            const backtestResultData = JSON.parse(eventData.analysis) as BacktestDayResult;
                             // Add to local array and keep only the last 50 results to avoid memory issues
                             backtestResults = [...backtestResults, backtestResultData].slice(-50);
                           } catch (error) {
@@ -151,10 +151,11 @@ export const backtestApi = {
                     case 'complete':
                       // Store the complete backtest results
                       if (eventData.data) {
+                        const performanceMetrics = eventData.data.performance_metrics as BacktestPerformanceMetrics;
                         const backtestResults = {
                           decisions: { backtest: { type: 'backtest_complete' } },
                           analyst_signals: {},
-                          performance_metrics: eventData.data.performance_metrics,
+                          performance_metrics: performanceMetrics,
                           final_portfolio: eventData.data.final_portfolio,
                           total_days: eventData.data.total_days,
                         };
@@ -286,5 +287,3 @@ export const backtestApi = {
     };
   },
 };
-
-export type { BacktestDayResult, BacktestPerformanceMetrics, BacktestRequest };

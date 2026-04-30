@@ -1,9 +1,9 @@
-import { NodeStatus, OutputNodeData, useNodeContext } from '@/contexts/node-context';
-import { Agent } from '@/data/agents';
-import { LanguageModel } from '@/data/models';
+import type { NodeStatus, OutputNodeData, useNodeContext } from '@/contexts/node-context';
+import type { Agent } from '@/data/agents';
+import type { LanguageModel } from '@/data/models';
 import { extractBaseAgentKey } from '@/data/node-mappings';
-import { flowConnectionManager } from '@/hooks/use-flow-connection';
-import {
+import { flowConnectionManager } from '@/services/flow-connection-manager';
+import type {
   HedgeFundRequest
 } from '@/services/types';
 

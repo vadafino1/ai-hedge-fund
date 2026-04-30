@@ -138,7 +138,7 @@ const flowStateManager = new FlowStateManager();
 // PUBLIC API - Clean interface for external use
 // =============================================================================
 
-export interface UseNodeStateReturn<T> {
+interface UseNodeStateReturn<T> {
   0: T;
   1: (value: T | ((prev: T) => T)) => void;
 }
@@ -157,7 +157,7 @@ export function setNodeInternalState(nodeId: string, state: Record<string, any>)
   flowStateManager.setNodeInternalState(nodeId, state);
 }
 
-export function clearNodeInternalState(nodeId: string): void {
+function clearNodeInternalState(nodeId: string): void {
   flowStateManager.clearNodeInternalState(nodeId);
 }
 
@@ -174,7 +174,7 @@ export function clearFlowNodeStates(flowId: string): void {
   flowStateManager.clearFlowNodeStates(flowId);
 }
 
-export function addStateChangeListener(listener: () => void): () => void {
+function addStateChangeListener(listener: () => void): () => void {
   return flowStateManager.addStateChangeListener(listener);
 }
 

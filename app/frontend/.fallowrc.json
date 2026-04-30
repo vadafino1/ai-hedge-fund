@@ -1,0 +1,6 @@
+{
+  "audit": {
+    "healthBaseline": "fallow-baselines/health.json",
+    "dupesBaseline": "fallow-baselines/dupes.json"
+  }
+}

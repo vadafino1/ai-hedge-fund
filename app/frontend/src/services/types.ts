@@ -1,5 +1,5 @@
 // Shared types for API requests and responses
-export enum ModelProvider {
+enum ModelProvider {
   OPENAI = 'OpenAI',
   ANTHROPIC = 'Anthropic',
   GROQ = 'Groq',

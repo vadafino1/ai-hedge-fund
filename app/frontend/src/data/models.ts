@@ -1,4 +1,4 @@
-import { api } from '@/services/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export interface LanguageModel {
   display_name: string;
@@ -19,8 +19,14 @@ export const getModels = async (): Promise<LanguageModel[]> => {
   }
   
   try {
-    languageModels = await api.getLanguageModels();
-    return languageModels;
+    const response = await fetch(`${API_BASE_URL}/language-models/`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    const fetchedModels = data.models as LanguageModel[];
+    languageModels = fetchedModels;
+    return fetchedModels;
   } catch (error) {
     console.error('Failed to fetch models:', error);
     throw error; // Let the calling component handle the error

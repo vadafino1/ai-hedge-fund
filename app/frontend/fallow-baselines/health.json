@@ -1,0 +1,290 @@
+{
+  "finding_counts": {
+    "src/components/Flow.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/components/Layout.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/components/panels/bottom/tabs/backtest-output.tsx": {
+      "crap_critical": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/components/panels/bottom/tabs/output-tab-utils.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/components/panels/bottom/tabs/output-tab.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/components/panels/bottom/tabs/reasoning-content.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/components/panels/bottom/tabs/regular-output.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/components/panels/left/flow-create-dialog.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/components/panels/left/flow-edit-dialog.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/components/panels/left/flow-item.tsx": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/components/panels/left/flow-list.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/components/panels/right/component-list.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/components/settings/api-keys.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/components/settings/models/cloud.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/components/settings/models/ollama.tsx": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 3
+      },
+      "crap_high": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/components/settings/sandbox.tsx": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/components/settings/settings.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/components/tabs/tab-bar.tsx": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/components/ui/sidebar.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/contexts/flow-context.tsx": {
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/contexts/node-context.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/contexts/tabs-context.tsx": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/hooks/use-flow-connection.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/hooks/use-flow-history.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/hooks/use-flow-management-tabs.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/hooks/use-flow-management.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/hooks/use-keyboard-shortcuts.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/hooks/use-resizable.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/hooks/use-toast-manager.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/nodes/components/agent-node.tsx": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/nodes/components/agent-output-dialog.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/nodes/components/investment-report-dialog.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/nodes/components/investment-report-node.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/nodes/components/json-output-dialog.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/nodes/components/json-output-node.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/nodes/components/node-shell.tsx": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/nodes/components/output-node-status.tsx": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/nodes/components/portfolio-manager-node.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/nodes/components/portfolio-start-node.tsx": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/nodes/components/stock-analyzer-node.tsx": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/services/api.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/services/backtest-api.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/utils/text-utils.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    }
+  },
+  "runtime_coverage_findings": [],
+  "target_keys": [
+    "src/components/ui/resizable.tsx:dead code",
+    "src/services/api.ts:complexity",
+    "src/components/ui/sheet.tsx:dead code",
+    "src/services/backtest-api.ts:complexity",
+    "src/components/settings/models/ollama.tsx:complexity"
+  ]
+}

@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Platform detection utility
-export function isMac(): boolean {
+function isMac(): boolean {
   return typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 }
 
@@ -17,7 +17,7 @@ export function formatKeyboardShortcut(key: string): string {
 }
 
 // Provider color utility for consistent styling across components
-export function getProviderColor(provider: string): string {
+function getProviderColor(provider: string): string {
   return 'bg-gray-600/20 text-primary border-gray-600/40';
   // switch (provider.toLowerCase()) {
   //   case 'anthropic':

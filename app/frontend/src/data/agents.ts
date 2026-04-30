@@ -1,4 +1,4 @@
-import { api } from '@/services/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export interface Agent {
   key: string;
@@ -21,8 +21,14 @@ export const getAgents = async (): Promise<Agent[]> => {
   }
   
   try {
-    agents = await api.getAgents();
-    return agents;
+    const response = await fetch(`${API_BASE_URL}/hedge-fund/agents`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    const fetchedAgents = data.agents as Agent[];
+    agents = fetchedAgents;
+    return fetchedAgents;
   } catch (error) {
     console.error('Failed to fetch agents:', error);
     throw error; // Let the calling component handle the error

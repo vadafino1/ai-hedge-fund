@@ -1,4 +1,4 @@
-import { LanguageModel } from '@/data/models';
+import type { LanguageModel } from '@/data/models';
 import { createContext, ReactNode, useCallback, useContext, useState } from 'react';
 
 export type NodeStatus = 'IDLE' | 'IN_PROGRESS' | 'COMPLETE' | 'ERROR';
@@ -12,7 +12,7 @@ export interface MessageItem {
 }
 
 // Agent node state structure
-export interface AgentNodeData {
+interface AgentNodeData {
   status: NodeStatus;
   ticker: string | null;
   message: string;

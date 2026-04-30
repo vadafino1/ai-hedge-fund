@@ -5,7 +5,7 @@ import { extractBaseAgentKey } from '@/data/node-mappings';
  * @param text The text to format
  * @returns An array of formatted paragraphs
  */
-export function formatTextIntoParagraphs(text: string): string[] {
+function formatTextIntoParagraphs(text: string): string[] {
   if (!text) return [];
   
   // First split by any existing paragraphs
@@ -50,7 +50,7 @@ export function formatTextIntoParagraphs(text: string): string[] {
  * @param text The text to check
  * @returns true if the text is valid JSON or valid JS object, false otherwise
  */
-export function isJsonString(text: string): boolean {
+function isJsonString(text: string): boolean {
   if (!text) return false;
   
   // Trim the text to remove any leading/trailing whitespace
@@ -180,7 +180,7 @@ export function formatContent(content: string): {
  * @param jsonString The JSON string to format
  * @returns HTML string with basic syntax highlighting classes
  */
-export function createHighlightedJson(jsonString: string): string {
+function createHighlightedJson(jsonString: string): string {
   if (!jsonString) return '';
   
   try {

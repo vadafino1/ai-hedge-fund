@@ -1,5 +1,6 @@
-import { AppNode } from "@/nodes/types";
-import { Agent, getAgents } from "./agents";
+import type { AppNode } from "@/nodes/types";
+import type { Agent } from "./agents";
+import { getAgents } from "./agents";
 
 // Map of sidebar item names to node creation functions
 export interface NodeTypeDefinition {
@@ -121,7 +122,7 @@ export async function getNodeTypeDefinition(componentName: string): Promise<Node
 }
 
 // Get the node ID that would be generated for a component
-export async function getNodeIdForComponent(componentName: string): Promise<string | null> {
+async function getNodeIdForComponent(componentName: string): Promise<string | null> {
   const nodeTypeDefinition = await getNodeTypeDefinition(componentName);
   if (!nodeTypeDefinition) {
     return null;
@@ -135,6 +136,6 @@ export async function getNodeIdForComponent(componentName: string): Promise<stri
 /**
  * Clear the node type definitions cache - useful for testing or when you want to force a refresh
  */
-export const clearNodeTypeDefinitionsCache = () => {
+const clearNodeTypeDefinitionsCache = () => {
   nodeTypeDefinitionsCache = null;
 }; 

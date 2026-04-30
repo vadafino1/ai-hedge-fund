@@ -1,6 +1,6 @@
 import { type Edge, type Node, getConnectedEdges } from '@xyflow/react';
 
-export type NodeStatus = 'IDLE' | 'IN_PROGRESS' | 'COMPLETE' | 'ERROR';
+type NodeStatus = 'IDLE' | 'IN_PROGRESS' | 'COMPLETE' | 'ERROR';
 
 /**
  * Returns the appropriate background color class based on node status
@@ -25,7 +25,7 @@ export function getStatusColor(status: NodeStatus): string {
  * @param params.edges - All edges in the flow
  * @returns A Set of node IDs that are part of a complete path
  */
-export function getNodesInCompletePaths({
+function getNodesInCompletePaths({
   startNodeId,
   endNodeId,
   nodes,

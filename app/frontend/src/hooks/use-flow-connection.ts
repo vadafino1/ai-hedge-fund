@@ -1,76 +1,9 @@
 import { useNodeContext } from '@/contexts/node-context';
+import { flowConnectionManager } from '@/services/flow-connection-manager';
 import { api } from '@/services/api';
 import { backtestApi } from '@/services/backtest-api';
-import { BacktestRequest, HedgeFundRequest } from '@/services/types';
+import type { BacktestRequest, HedgeFundRequest } from '@/services/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
-
-// Connection state for a specific flow
-export type FlowConnectionState = 'idle' | 'connecting' | 'connected' | 'error' | 'completed';
-
-interface FlowConnectionInfo {
-  state: FlowConnectionState;
-  abortController: (() => void) | null;
-  startTime: number;
-  lastActivity: number;
-  error?: string;
-}
-
-// Global connection manager - tracks all active flow connections
-class FlowConnectionManager {
-  private connections = new Map<string, FlowConnectionInfo>();
-  private listeners = new Set<() => void>();
-
-  // Get connection info for a flow
-  getConnection(flowId: string): FlowConnectionInfo {
-    return this.connections.get(flowId) || {
-      state: 'idle',
-      abortController: null,
-      startTime: 0,
-      lastActivity: 0,
-    };
-  }
-
-  // Set connection info for a flow
-  setConnection(flowId: string, info: Partial<FlowConnectionInfo>): void {
-    const existing = this.getConnection(flowId);
-    const updated = {
-      ...existing,
-      ...info,
-      lastActivity: Date.now(),
-    };
-    
-    this.connections.set(flowId, updated);
-    this.notifyListeners();
-  }
-
-  // Remove connection for a flow
-  removeConnection(flowId: string): void {
-    const connection = this.connections.get(flowId);
-    if (connection?.abortController) {
-      connection.abortController();
-    }
-    this.connections.delete(flowId);
-    this.notifyListeners();
-  }
-
-  // Add listener for connection changes
-  addListener(listener: () => void): void {
-    this.listeners.add(listener);
-  }
-
-  // Remove listener
-  removeListener(listener: () => void): void {
-    this.listeners.delete(listener);
-  }
-
-  // Notify all listeners of changes
-  private notifyListeners(): void {
-    this.listeners.forEach(listener => listener());
-  }
-}
-
-// Global instance
-export const flowConnectionManager = new FlowConnectionManager();
 
 /**
  * Hook for managing flow connections and execution

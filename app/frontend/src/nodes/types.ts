@@ -1,7 +1,7 @@
-import { MessageItem } from '@/contexts/node-context';
+import type { MessageItem } from '@/contexts/node-context';
 import type { BuiltInNode, Node } from '@xyflow/react';
 
-export type NodeMessage = MessageItem;
+type NodeMessage = MessageItem;
 
 export type AgentNode = Node<{ name: string, description: string, status: string }, 'agent-node'>;
 export type InvestmentReportNode = Node<{ name: string, description: string, status: string }, 'investment-report-node'>;

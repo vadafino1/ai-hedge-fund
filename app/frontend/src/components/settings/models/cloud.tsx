@@ -3,6 +3,8 @@ import { cn } from '@/lib/utils';
 import { Cloud, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { ModelListRow } from './model-list-row';
+
 interface CloudModelsProps {
   className?: string;
 }
@@ -89,27 +91,16 @@ export function CloudModels({ className }: CloudModelsProps) {
         ) : allModels.length > 0 ? (
           <div className="space-y-1">
             {allModels.map((model) => (
-              <div 
+              <ModelListRow
                 key={`${model.provider}-${model.model_name}`}
-                className="group flex items-center justify-between bg-muted hover-bg rounded-md px-3 py-2.5 transition-colors"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm truncate text-primary">{model.display_name}</span>
-                    {model.model_name !== model.display_name && (
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {model.model_name}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
+                displayName={model.display_name}
+                modelName={model.model_name}
+                action={(
                   <Badge className="text-xs text-primary bg-primary/10 border-primary/30 hover:bg-primary/20 hover:border-primary/50">
                     {model.provider}
                   </Badge>
-                </div>
-              </div>
+                )}
+              />
             ))}
           </div>
         ) : (

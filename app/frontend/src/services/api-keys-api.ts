@@ -1,6 +1,6 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-export interface ApiKey {
+interface ApiKey {
   id: number;
   provider: string;
   key_value: string;
@@ -11,7 +11,7 @@ export interface ApiKey {
   last_used?: string;
 }
 
-export interface ApiKeySummary {
+interface ApiKeySummary {
   id: number;
   provider: string;
   is_active: boolean;
@@ -22,20 +22,20 @@ export interface ApiKeySummary {
   has_key: boolean;
 }
 
-export interface ApiKeyCreateRequest {
+interface ApiKeyCreateRequest {
   provider: string;
   key_value: string;
   description?: string;
   is_active: boolean;
 }
 
-export interface ApiKeyUpdateRequest {
+interface ApiKeyUpdateRequest {
   key_value?: string;
   description?: string;
   is_active?: boolean;
 }
 
-export interface ApiKeyBulkUpdateRequest {
+interface ApiKeyBulkUpdateRequest {
   api_keys: ApiKeyCreateRequest[];
 }
 

@@ -2,24 +2,24 @@ import { Flow } from '@/types/flow';
 
 const API_BASE_URL = 'http://localhost:8000';
 
-export interface CreateFlowRequest {
+interface CreateFlowRequest {
   name: string;
   description?: string;
-  nodes: any;
-  edges: any;
-  viewport?: any;
-  data?: any;
+  nodes: unknown;
+  edges: unknown;
+  viewport?: unknown;
+  data?: unknown;
   is_template?: boolean;
   tags?: string[];
 }
 
-export interface UpdateFlowRequest {
+interface UpdateFlowRequest {
   name?: string;
   description?: string;
-  nodes?: any;
-  edges?: any;
-  viewport?: any;
-  data?: any;
+  nodes?: unknown;
+  edges?: unknown;
+  viewport?: unknown;
+  data?: unknown;
   is_template?: boolean;
   tags?: string[];
 }
@@ -96,7 +96,7 @@ export const flowService = {
   },
 
   // Create a default flow for new users
-  async createDefaultFlow(nodes: any, edges: any, viewport?: any): Promise<Flow> {
+  async createDefaultFlow(nodes: unknown, edges: unknown, viewport?: unknown): Promise<Flow> {
     return this.createFlow({
       name: 'My First Flow',
       description: 'Welcome to AI Hedge Fund! Start building your flow here.',

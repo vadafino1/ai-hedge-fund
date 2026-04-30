@@ -1,14 +1,169 @@
-import type { NodeStatus, useNodeContext } from '@/contexts/node-context';
+import type { NodeStatus, OutputNodeData, useNodeContext } from '@/contexts/node-context';
 import { extractBaseAgentKey } from '@/data/node-mappings';
-import { flowConnectionManager } from '@/services/flow-connection-manager';
+import { getStoredExecutionMode } from '@/services/execution-mode';
+import {
+  completeFlowConnectionIfStillConnected,
+  markFlowConnectionCompleted,
+  markFlowConnectionError,
+  markFlowConnectionIdle,
+} from '@/services/flow-connection-manager';
+import { startSsePostStream, type ParsedSseEvent } from '@/services/sse-client';
 import type {
   BacktestDayResult,
   BacktestPerformanceMetrics,
   BacktestRequest
 } from '@/services/types';
-import { getStoredExecutionMode } from '@/services/execution-mode';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+type NodeContext = ReturnType<typeof useNodeContext>;
+
+interface BacktestCompleteData {
+  performance_metrics?: BacktestPerformanceMetrics;
+  final_portfolio?: OutputNodeData['final_portfolio'];
+  total_days?: number;
+}
+
+interface BacktestStreamData {
+  agent?: string;
+  status?: string;
+  ticker?: string | null;
+  analysis?: string;
+  timestamp?: string;
+  data?: BacktestCompleteData;
+  message?: string;
+}
+
+interface BacktestStreamState {
+  results: BacktestDayResult[];
+}
+
+interface BacktestStreamContext {
+  flowId: string | null;
+  nodeContext: NodeContext;
+  params: BacktestRequest;
+  state: BacktestStreamState;
+}
+
+function resolveAgentNodeId(agentName: string, params: BacktestRequest): string {
+  const baseAgentKey = agentName.replace('_agent', '');
+  const agentIds = params.graph_nodes.map(node => node.id);
+  return agentIds.find(id => extractBaseAgentKey(id) === baseAgentKey) || baseAgentKey;
+}
+
+function handleAgentProgress(eventData: BacktestStreamData, context: BacktestStreamContext): void {
+  if (!eventData.agent || eventData.agent === 'backtest') return;
+
+  const nodeStatus: NodeStatus = eventData.status === 'Done' ? 'COMPLETE' : 'IN_PROGRESS';
+  const uniqueNodeId = resolveAgentNodeId(eventData.agent, context.params);
+
+  context.nodeContext.updateAgentNode(context.flowId, uniqueNodeId, {
+    status: nodeStatus,
+    ticker: eventData.ticker,
+    message: eventData.status,
+    analysis: eventData.analysis,
+    timestamp: eventData.timestamp,
+  });
+}
+
+function appendBacktestResult(eventData: BacktestStreamData, state: BacktestStreamState): void {
+  if (!eventData.analysis) return;
+
+  try {
+    const backtestResultData = JSON.parse(eventData.analysis) as BacktestDayResult;
+    state.results = [...state.results, backtestResultData].slice(-50);
+  } catch (error) {
+    console.error('Error parsing backtest result data:', error);
+  }
+}
+
+function handleBacktestProgress(eventData: BacktestStreamData, context: BacktestStreamContext): void {
+  if (eventData.agent !== 'backtest') return;
+
+  appendBacktestResult(eventData, context.state);
+  context.nodeContext.updateAgentNode(context.flowId, 'backtest', {
+    status: 'IN_PROGRESS',
+    message: eventData.status,
+    backtestResults: context.state.results,
+  });
+}
+
+function handleProgress(eventData: BacktestStreamData, context: BacktestStreamContext): void {
+  handleAgentProgress(eventData, context);
+  handleBacktestProgress(eventData, context);
+}
+
+function handleComplete(eventData: BacktestStreamData, context: BacktestStreamContext): void {
+  if (eventData.data) {
+    context.nodeContext.setOutputNodeData(context.flowId, {
+      decisions: { backtest: { type: 'backtest_complete' } },
+      analyst_signals: {},
+      performance_metrics: eventData.data.performance_metrics,
+      final_portfolio: eventData.data.final_portfolio,
+      total_days: eventData.data.total_days,
+    });
+  }
+
+  context.nodeContext.updateAgentNode(context.flowId, 'backtest', {
+    status: 'COMPLETE',
+    message: 'Backtest completed successfully',
+  });
+  context.nodeContext.updateAgentNode(context.flowId, 'output', {
+    status: 'COMPLETE',
+    message: 'Backtest analysis complete',
+  });
+
+  markFlowConnectionCompleted(context.flowId);
+}
+
+function handleBacktestError(eventData: BacktestStreamData, context: BacktestStreamContext): void {
+  context.nodeContext.updateAgentNode(context.flowId, 'portfolio-start', {
+    status: 'ERROR',
+    message: eventData.message || 'Backtest failed',
+  });
+  markFlowConnectionError(context.flowId, eventData.message || 'Unknown error occurred');
+}
+
+type BacktestStreamHandler = (eventData: BacktestStreamData, context: BacktestStreamContext) => void;
+
+const backtestStreamHandlers: Record<string, BacktestStreamHandler> = {
+  start: (_eventData, context) => {
+    context.nodeContext.resetAllNodes(context.flowId);
+    context.state.results = [];
+    context.nodeContext.updateAgentNode(context.flowId, 'backtest', {
+      status: 'IN_PROGRESS',
+      message: 'Starting backtest...',
+      backtestResults: [],
+    });
+  },
+  progress: handleProgress,
+  complete: handleComplete,
+  error: handleBacktestError,
+};
+
+function handleBacktestStreamEvent(
+  event: ParsedSseEvent<BacktestStreamData>,
+  context: BacktestStreamContext
+): void {
+  console.log(`Parsed backtest ${event.type} event:`, event.data);
+
+  const handler = backtestStreamHandlers[event.type];
+  if (!handler) {
+    console.warn('Unknown backtest event type:', event.type);
+    return;
+  }
+
+  handler(event.data, context);
+}
+
+function handleBacktestConnectionError(error: Error, context: BacktestStreamContext): void {
+  console.error('Backtest SSE connection error:', error);
+  context.nodeContext.updateAgentNode(context.flowId, 'portfolio-start', {
+    status: 'ERROR',
+    message: 'Failed to connect to backtest service',
+  });
+  markFlowConnectionError(context.flowId, error.message || 'Connection failed');
+}
 
 export const backtestApi = {
   /**
@@ -20,273 +175,28 @@ export const backtestApi = {
    */
   runBacktest: (
     params: BacktestRequest,
-    nodeContext: ReturnType<typeof useNodeContext>,
+    nodeContext: NodeContext,
     flowId: string | null = null
   ): (() => void) => {
-    // Create the controller for aborting the request
-    const controller = new AbortController();
-    const { signal } = controller;
+    const context: BacktestStreamContext = {
+      flowId,
+      nodeContext,
+      params,
+      state: { results: [] },
+    };
 
-    // Make a POST request to the backtest endpoint
-    fetch(`${API_BASE_URL}/hedge-fund/backtest`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ ...params, execution_mode: params.execution_mode || getStoredExecutionMode() }),
-      signal,
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-            
-      // Process the response as a stream of SSE events
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('Failed to get response reader');
-      }
-      
-      const decoder = new TextDecoder();
-      let buffer = '';
-      
-      // Local array to accumulate backtest results
-      let backtestResults: BacktestDayResult[] = [];
-      
-      // Function to process the stream
-      const processStream = async () => {
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            
-            if (done) {
-              break;
-            }
-            
-            // Decode the chunk and add to buffer
-            const chunk = decoder.decode(value, { stream: true });
-            buffer += chunk;
-            
-            // Process any complete events in the buffer (separated by double newlines)
-            const events = buffer.split('\n\n');
-            buffer = events.pop() || '';
-            
-            for (const eventText of events) {
-              if (!eventText.trim()) continue;
-                            
-              try {
-                // Parse the event type and data from the SSE format
-                const eventTypeMatch = eventText.match(/^event: (.+)$/m);
-                const dataMatch = eventText.match(/^data: (.+)$/m);
-                
-                if (eventTypeMatch && dataMatch) {
-                  const eventType = eventTypeMatch[1];
-                  const eventData = JSON.parse(dataMatch[1]);
-                  
-                  console.log(`Parsed backtest ${eventType} event:`, eventData);
-                  
-                  // Process based on event type
-                  switch (eventType) {
-                    case 'start':
-                      // Reset all nodes at the start of a new backtest
-                      nodeContext.resetAllNodes(flowId);
-                      // Clear local backtest results
-                      backtestResults = [];
-                      // Create a backtest agent entry
-                      nodeContext.updateAgentNode(flowId, 'backtest', {
-                        status: 'IN_PROGRESS',
-                        message: 'Starting backtest...',
-                        backtestResults: [],
-                      });
-                      break;
-                    
-                    case 'progress':
-                      // Handle individual agent updates (from actual agents during backtest)
-                      if (eventData.agent && eventData.agent !== 'backtest') {
-                        // Map the progress to a node status
-                        let nodeStatus: NodeStatus = 'IN_PROGRESS';
-                        if (eventData.status === 'Done') {
-                          nodeStatus = 'COMPLETE';
-                        }
-                        // Map the backend agent name to the unique node ID
-                        const baseAgentKey = eventData.agent.replace('_agent', '');
-                        
-                        // Find the unique node ID that corresponds to this base agent key
-                        // We need to get the agent IDs from the request parameters
-                        const agentIds = params.graph_nodes.map(node => node.id);
-                        const uniqueNodeId = agentIds.find(id => 
-                          extractBaseAgentKey(id) === baseAgentKey
-                        ) || baseAgentKey;
-                                                
-                        // Use the enhanced API to update both status and additional data
-                        nodeContext.updateAgentNode(flowId, uniqueNodeId, {
-                          status: nodeStatus,
-                          ticker: eventData.ticker,
-                          message: eventData.status,
-                          analysis: eventData.analysis,
-                          timestamp: eventData.timestamp
-                        });
-                      }
-                      // Handle backtest-specific progress updates
-                      else if (eventData.agent === 'backtest') {
-                        // If this progress update contains backtest result data, add it to local array
-                        if (eventData.analysis) {
-                          try {
-                            const backtestResultData = JSON.parse(eventData.analysis) as BacktestDayResult;
-                            // Add to local array and keep only the last 50 results to avoid memory issues
-                            backtestResults = [...backtestResults, backtestResultData].slice(-50);
-                          } catch (error) {
-                            console.error('Error parsing backtest result data:', error);
-                          }
-                        }
-                        
-                        // Update the node with the local backtest results
-                        nodeContext.updateAgentNode(flowId, 'backtest', {
-                          status: 'IN_PROGRESS',
-                          message: eventData.status,
-                          backtestResults: backtestResults,
-                        });
-                      }
-                      break;
-                    
-                    case 'complete':
-                      // Store the complete backtest results
-                      if (eventData.data) {
-                        const performanceMetrics = eventData.data.performance_metrics as BacktestPerformanceMetrics;
-                        const backtestResults = {
-                          decisions: { backtest: { type: 'backtest_complete' } },
-                          analyst_signals: {},
-                          performance_metrics: performanceMetrics,
-                          final_portfolio: eventData.data.final_portfolio,
-                          total_days: eventData.data.total_days,
-                        };
-                        
-                        nodeContext.setOutputNodeData(flowId, backtestResults);
-                      }
-                      
-                      // Mark the backtest agent as complete
-                      nodeContext.updateAgentNode(flowId, 'backtest', {
-                        status: 'COMPLETE',
-                        message: 'Backtest completed successfully',
-                      });
-                      
-                      // Update the output node
-                      nodeContext.updateAgentNode(flowId, 'output', {
-                        status: 'COMPLETE',
-                        message: 'Backtest analysis complete'
-                      });
-
-                      // Update flow connection state to completed
-                      if (flowId) {
-                        flowConnectionManager.setConnection(flowId, {
-                          state: 'completed',
-                          abortController: null,
-                        });
-
-                        // Auto-cleanup completed connections after a delay
-                        setTimeout(() => {
-                          const currentConnection = flowConnectionManager.getConnection(flowId);
-                          if (currentConnection.state === 'completed') {
-                            flowConnectionManager.setConnection(flowId, {
-                              state: 'idle',
-                            });
-                          }
-                        }, 30000); // 30 seconds
-                      }
-                      break;
-                    
-                    case 'error':
-                      // Mark nodes as error when there's an error
-                      nodeContext.updateAgentNode(flowId, 'portfolio-start', {
-                        status: 'ERROR',
-                        message: eventData.message || 'Backtest failed',
-                      });
-                      
-                      // Update flow connection state to error
-                      if (flowId) {
-                        flowConnectionManager.setConnection(flowId, {
-                          state: 'error',
-                          error: eventData.message || 'Unknown error occurred',
-                          abortController: null,
-                        });
-                      }
-                      break;
-                    
-                    default:
-                      console.warn('Unknown backtest event type:', eventType);
-                  }
-                }
-              } catch (err) {
-                console.error('Error parsing backtest SSE event:', err, 'Raw event:', eventText);
-              }
-            }
-          }
-          
-          // After the stream has finished, check if we are still in a connected state
-          if (flowId) {
-            const currentConnection = flowConnectionManager.getConnection(flowId);
-            if (currentConnection.state === 'connected') {
-              flowConnectionManager.setConnection(flowId, {
-                state: 'completed',
-                abortController: null,
-              });
-            }
-          }
-        } catch (error: any) {
-          if (error.name === 'AbortError') {
-          } else {
-            console.error('Error reading backtest SSE stream:', error);
-            // Mark nodes as error when there's a connection error
-            nodeContext.updateAgentNode(flowId, 'portfolio-start', {
-              status: 'ERROR',
-              message: 'Connection error during backtest',
-            });
-            
-            // Update flow connection state to error
-            if (flowId) {
-              flowConnectionManager.setConnection(flowId, {
-                state: 'error',
-                error: error.message || 'Connection error',
-                abortController: null,
-              });
-            }
-          }
-        }
-      };
-      
-      // Start processing the stream
-      processStream();
-    })
-    .catch((error: any) => {
-      console.error('Backtest SSE connection error:', error);
-      // Mark nodes as error when there's a connection error
-      nodeContext.updateAgentNode(flowId, 'portfolio-start', {
-        status: 'ERROR',
-        message: 'Failed to connect to backtest service',
-      });
-      
-      // Update flow connection state to error
-      if (flowId) {
-        flowConnectionManager.setConnection(flowId, {
-          state: 'error',
-          error: error.message || 'Connection failed',
-          abortController: null,
-        });
-      }
+    const abortStream = startSsePostStream<BacktestStreamData>({
+      url: `${API_BASE_URL}/hedge-fund/backtest`,
+      body: { ...params, execution_mode: params.execution_mode || getStoredExecutionMode() },
+      onEvent: event => handleBacktestStreamEvent(event, context),
+      onComplete: () => completeFlowConnectionIfStillConnected(flowId),
+      onError: error => handleBacktestConnectionError(error, context),
+      onEventError: (error, rawEvent) => console.error('Error parsing backtest SSE event:', error, 'Raw event:', rawEvent),
     });
 
-    // Return abort function
     return () => {
-      controller.abort();
-      // Update connection state when manually aborted
-      if (flowId) {
-        flowConnectionManager.setConnection(flowId, {
-          state: 'idle',
-          abortController: null,
-        });
-      }
+      abortStream();
+      markFlowConnectionIdle(flowId);
     };
   },
 };
-
-

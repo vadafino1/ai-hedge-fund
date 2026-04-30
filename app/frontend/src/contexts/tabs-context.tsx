@@ -2,9 +2,9 @@ import { Flow } from '@/types/flow';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 
 // Define tab types
-export type TabType = 'flow' | 'settings';
+type TabType = 'flow' | 'settings';
 
-export interface Tab {
+interface Tab {
   id: string;
   type: TabType;
   title: string;
@@ -12,7 +12,7 @@ export interface Tab {
   // For flow tabs
   flow?: Flow;
   // For other tabs (settings, etc.)
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // Serializable version of Tab for localStorage (without content)
@@ -21,7 +21,7 @@ interface SerializableTab {
   type: TabType;
   title: string;
   flow?: Flow;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface TabsContextType {

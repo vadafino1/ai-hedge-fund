@@ -57,3 +57,57 @@ class FlowConnectionManager {
 }
 
 export const flowConnectionManager = new FlowConnectionManager();
+
+function resetCompletedFlowConnectionAfterDelay(flowId: string | null): void {
+  if (!flowId) return;
+
+  setTimeout(() => {
+    const currentConnection = flowConnectionManager.getConnection(flowId);
+    if (currentConnection.state === 'completed') {
+      flowConnectionManager.setConnection(flowId, {
+        state: 'idle',
+      });
+    }
+  }, 30000);
+}
+
+export function completeFlowConnectionIfStillConnected(flowId: string | null): void {
+  if (!flowId) return;
+
+  const currentConnection = flowConnectionManager.getConnection(flowId);
+  if (currentConnection.state === 'connected') {
+    flowConnectionManager.setConnection(flowId, {
+      state: 'completed',
+      abortController: null,
+    });
+  }
+}
+
+export function markFlowConnectionCompleted(flowId: string | null): void {
+  if (!flowId) return;
+
+  flowConnectionManager.setConnection(flowId, {
+    state: 'completed',
+    abortController: null,
+  });
+  resetCompletedFlowConnectionAfterDelay(flowId);
+}
+
+export function markFlowConnectionError(flowId: string | null, message: string): void {
+  if (!flowId) return;
+
+  flowConnectionManager.setConnection(flowId, {
+    state: 'error',
+    error: message,
+    abortController: null,
+  });
+}
+
+export function markFlowConnectionIdle(flowId: string | null): void {
+  if (!flowId) return;
+
+  flowConnectionManager.setConnection(flowId, {
+    state: 'idle',
+    abortController: null,
+  });
+}

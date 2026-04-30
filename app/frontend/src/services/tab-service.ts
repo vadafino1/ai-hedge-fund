@@ -7,7 +7,7 @@ export interface TabData {
   type: 'flow' | 'settings';
   title: string;
   flow?: Flow;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export class TabService {
@@ -42,11 +42,6 @@ export class TabService {
       title: 'Settings',
       content: TabService.createTabContent({ type: 'settings', title: 'Settings' }),
     };
-  }
-
-  // Restore tab content for persisted tabs (used when loading from localStorage)
-  static restoreTabContent(tabData: TabData): ReactNode {
-    return TabService.createTabContent(tabData);
   }
 
   // Helper method to restore a complete tab from saved data

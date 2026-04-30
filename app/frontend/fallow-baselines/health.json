@@ -161,11 +161,6 @@
         "count": 2
       }
     },
-    "src/hooks/use-flow-management.ts": {
-      "crap_moderate": {
-        "count": 2
-      }
-    },
     "src/hooks/use-keyboard-shortcuts.ts": {
       "complexity_critical": {
         "count": 1
@@ -254,22 +249,6 @@
         "count": 1
       }
     },
-    "src/services/api.ts": {
-      "complexity_critical": {
-        "count": 1
-      },
-      "crap_critical": {
-        "count": 1
-      }
-    },
-    "src/services/backtest-api.ts": {
-      "complexity_critical": {
-        "count": 1
-      },
-      "crap_critical": {
-        "count": 1
-      }
-    },
     "src/utils/text-utils.ts": {
       "crap_critical": {
         "count": 1
@@ -281,10 +260,6 @@
   },
   "runtime_coverage_findings": [],
   "target_keys": [
-    "src/components/ui/resizable.tsx:dead code",
-    "src/services/api.ts:complexity",
-    "src/components/ui/sheet.tsx:dead code",
-    "src/services/backtest-api.ts:complexity",
     "src/components/settings/models/ollama.tsx:complexity"
   ]
 }

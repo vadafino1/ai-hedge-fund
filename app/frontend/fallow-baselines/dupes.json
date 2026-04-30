@@ -8,16 +8,8 @@
     "src/components/settings/models/ollama.tsx:191-229|src/components/settings/models/ollama.tsx:427-465",
     "src/components/settings/models/ollama.tsx:192-202|src/components/settings/models/ollama.tsx:294-303|src/components/settings/models/ollama.tsx:428-438",
     "src/components/settings/models/ollama.tsx:509-517|src/components/settings/models/ollama.tsx:524-532",
-    "src/hooks/use-enhanced-flow-actions.ts:21-48|src/hooks/use-flow-management-tabs.ts:60-87|src/hooks/use-flow-management.ts:58-85",
-    "src/hooks/use-enhanced-flow-actions.ts:48-69|src/hooks/use-flow-management-tabs.ts:87-108|src/hooks/use-flow-management.ts:85-106",
-    "src/hooks/use-enhanced-flow-actions.ts:75-103|src/hooks/use-flow-management.ts:112-140",
-    "src/hooks/use-flow-management-tabs.ts:15-35|src/hooks/use-flow-management.ts:14-34",
-    "src/hooks/use-flow-management-tabs.ts:49-130|src/hooks/use-flow-management.ts:47-143",
-    "src/hooks/use-flow-management-tabs.ts:117-121|src/hooks/use-flow-management.ts:150-154",
-    "src/hooks/use-flow-management-tabs.ts:148-182|src/hooks/use-flow-management.ts:212-246",
-    "src/hooks/use-flow-management-tabs.ts:192-278|src/hooks/use-flow-management.ts:253-284",
-    "src/hooks/use-flow-management-tabs.ts:278-286|src/hooks/use-flow-management.ts:284-292",
-    "src/hooks/use-flow-management-tabs.ts:290-306|src/hooks/use-flow-management.ts:292-305",
+    "src/hooks/use-enhanced-flow-actions.ts:21-48|src/hooks/use-flow-management-tabs.ts:60-87",
+    "src/hooks/use-enhanced-flow-actions.ts:48-69|src/hooks/use-flow-management-tabs.ts:87-108",
     "src/hooks/use-node-state.ts:106-110|src/hooks/use-node-state.ts:95-99",
     "src/nodes/components/agent-node.tsx:25-48|src/nodes/components/portfolio-manager-node.tsx:26-57",
     "src/nodes/components/agent-node.tsx:57-74|src/nodes/components/portfolio-manager-node.tsx:74-89",
@@ -31,12 +23,6 @@
     "src/nodes/components/portfolio-start-node.tsx:360-376|src/nodes/components/stock-analyzer-node.tsx:264-284",
     "src/nodes/components/portfolio-start-node.tsx:377-413|src/nodes/components/stock-analyzer-node.tsx:285-321",
     "src/nodes/components/portfolio-start-node.tsx:424-447|src/nodes/components/stock-analyzer-node.tsx:355-377",
-    "src/services/api-keys-api.ts:116-125|src/services/api-keys-api.ts:145-154",
-    "src/services/api.ts:124-139|src/services/backtest-api.ts:36-51",
-    "src/services/api.ts:139-177|src/services/backtest-api.ts:54-92",
-    "src/services/api.ts:190-202|src/services/backtest-api.ts:117-129",
-    "src/services/api.ts:212-237|src/services/backtest-api.ts:174-200",
-    "src/services/api.ts:253-270|src/services/backtest-api.ts:220-236",
-    "src/services/api.ts:273-290|src/services/backtest-api.ts:243-260"
+    "src/services/api-keys-api.ts:116-125|src/services/api-keys-api.ts:145-154"
   ]
 }
